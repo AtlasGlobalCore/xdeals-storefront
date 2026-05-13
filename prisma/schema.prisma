@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  name          String
+  nameEn        String
+  slug          String   @unique
+  description   String
+  descriptionEn String
+  price         Float
+  unit          String   @default("kg")
+  category      String   // "bagas", "arvore", "arbustos", "morangos"
+  format        String   // "fresco", "congelado", "cabaz-misto"
+  image         String
+  inStock       Boolean  @default(true)
+  isSeasonal    Boolean  @default(false)
+  seasonStart   String?  // Month name e.g. "Maio"
+  seasonEnd     String?  // Month name e.g. "Setembro"
+  origin        String   @default("Sátão, Viseu")
+  nutritionalInfo String?
+  storageTips   String?
+  storageTipsEn String?
+  isFeatured    Boolean  @default(false)
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model B2BInquiry {
+  id           String   @id @default(cuid())
+  companyName  String
+  contactName  String
+  email        String
+  phone        String?
+  nif          String?
+  businessType String   // "restauracao", "retalho", "distribuidor", "outro"
+  products     String   // Comma-separated product slugs
+  quantity     String
+  message      String?
+  status       String   @default("pending") // "pending", "contacted", "closed"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Order {
+  id            String     @id @default(cuid())
+  customerName  String
+  email         String
+  phone         String
+  address       String
+  city          String
+  postalCode    String
+  total         Float
+  status        String     @default("pending") // "pending", "confirmed", "shipped", "delivered"
+  paymentMethod String     // "mbway", "multibanco", "cartao"
+  paymentRef    String?
+  items         OrderItem[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  productName String
+  quantity  Int
+  unitPrice Float
+  unit      String
+}
