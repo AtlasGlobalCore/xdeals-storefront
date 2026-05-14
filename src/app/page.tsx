@@ -11,6 +11,7 @@ import Footer from '@/components/footer'
 import ProductDetailDialog from '@/components/product-detail-dialog'
 import CartSheet from '@/components/cart-sheet'
 import CheckoutDialog from '@/components/checkout-dialog'
+import PolicyDialogs from '@/components/policy-dialogs'
 
 export default function Home() {
   return (
@@ -28,6 +29,7 @@ export default function Home() {
       <ProductDetailDialog />
       <CartSheet />
       <CheckoutDialog />
+      <PolicyDialogs />
     </div>
   )
 }

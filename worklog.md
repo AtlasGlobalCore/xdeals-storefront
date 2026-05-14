@@ -93,3 +93,34 @@ Stage Summary:
 - Shopping cart with checkout flow (MB WAY, Multibanco, Cartão de Crédito)
 - Lint passes with zero errors
 - All API routes return 200
+
+---
+Task ID: 6
+Agent: Main
+Task: Add policy pages and payment icons to footer
+
+Work Log:
+- Updated ui-store.ts with activePolicy state and PolicyType type
+- Created policy-dialogs.tsx with 4 complete legal pages in Portuguese:
+  - Política de Reembolso (DL 24/2014, 14-day return right, conditions, process, refund modes)
+  - Política de Entrega (delivery zones, timelines, costs table, cold chain, reception)
+  - Política de Privacidade (RGPD compliance, data collected, purposes, legal basis, data retention, rights, CNPD)
+  - Livro de Reclamações (online complaints portal, direct contact, resolution process, ADR entities, legal info)
+- Redesigned footer.tsx with 5-column grid layout:
+  - Brand column
+  - Links Rápidos column
+  - Legal column with policy links (with icons: RotateCcw, Truck, Shield, BookOpen)
+  - Contactos column
+  - Dados Fiscais column
+- Added payment method SVG icons: Visa, Mastercard, MB WAY, Bizum, Multibanco
+- Added "Pagamentos Seguros" section with shield icon and payment logos
+- Added quick policy links in bottom bar (Reembolso • Entrega • Privacidade • Reclamações)
+- Integrated PolicyDialogs component in page.tsx
+- Fixed JSX parsing error (</li> → </p>)
+- Lint passes with zero errors
+
+Stage Summary:
+- 4 legal pages implemented as dialog modals with full Portuguese legal content
+- Footer redesigned with 5-column layout and payment method icons
+- All policy links functional, opening in Dialog overlays
+- Payment icons: Visa, Mastercard, MB WAY, Bizum, Multibanco
