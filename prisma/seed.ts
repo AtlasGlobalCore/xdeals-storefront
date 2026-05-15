@@ -3,11 +3,40 @@ import { db } from '@/lib/db'
 async function seed() {
   console.log('Seeding database...')
 
-  // Clear existing products
+  // ─── Clean existing data (respecting FK order) ───
+  await db.orderItem.deleteMany()
+  await db.order.deleteMany()
+  await db.b2BInquiry.deleteMany()
   await db.product.deleteMany()
+  await db.store.deleteMany()
+  await db.seller.deleteMany()
 
+  // ─── Create Seller ───
+  const seller = await db.seller.create({
+    data: {
+      email: 'info@lovelyproportion.pt',
+      name: 'Lovelyproportion - Fruits Unipessoal Lda',
+    },
+  })
+  console.log(`Created seller: ${seller.name} (${seller.id})`)
+
+  // ─── Create Store ───
+  const store = await db.store.create({
+    data: {
+      sellerId: seller.id,
+      subdomain: 'lovelyproportion',
+      walletReference: 'WALLET-LP-001',
+      themePrimary: '#2D6A4F',
+      name: 'Lovelyproportion Fruits',
+      logoUrl: '/images/logo.svg',
+    },
+  })
+  console.log(`Created store: ${store.name} (${store.subdomain}.xdeals.online)`)
+
+  // ─── Seed Products (associated with Store) ───
   const products = [
     {
+      storeId: store.id,
       name: 'Mirtilos Frescos',
       nameEn: 'Fresh Blueberries',
       slug: 'mirtilos-frescos',
@@ -30,6 +59,7 @@ async function seed() {
       order: 1,
     },
     {
+      storeId: store.id,
       name: 'Framboesas Frescas',
       nameEn: 'Fresh Raspberries',
       slug: 'framboesas-frescas',
@@ -52,6 +82,7 @@ async function seed() {
       order: 2,
     },
     {
+      storeId: store.id,
       name: 'Amoras Frescas',
       nameEn: 'Fresh Blackberries',
       slug: 'amoras-frescas',
@@ -74,6 +105,7 @@ async function seed() {
       order: 3,
     },
     {
+      storeId: store.id,
       name: 'Groselhas Frescas',
       nameEn: 'Fresh Currants',
       slug: 'groselhas-frescas',
@@ -96,6 +128,7 @@ async function seed() {
       order: 4,
     },
     {
+      storeId: store.id,
       name: 'Morangos Frescos',
       nameEn: 'Fresh Strawberries',
       slug: 'morangos-frescos',
@@ -118,10 +151,11 @@ async function seed() {
       order: 5,
     },
     {
+      storeId: store.id,
       name: 'Mirtilos Congelados',
       nameEn: 'Frozen Blueberries',
       slug: 'mirtilos-congelados',
-      description: 'Mirtilos congelados individualmente (IQF) logo após a colheça, preservando todas as propriedades nutricionais e o sabor intenso. Disponíveis todo o ano para que possa disfrutar dos benefícios dos mirtilos em qualquer altura.',
+      description: 'Mirtilos congelados individualmente (IQF) logo após a colheita, preservando todas as propriedades nutricionais e o sabor intenso. Disponíveis todo o ano para que possa disfrutar dos benefícios dos mirtilos em qualquer altura.',
       descriptionEn: 'Individually quick-frozen (IQF) blueberries right after harvest, preserving all nutritional properties and intense flavor. Available year-round so you can enjoy the benefits of blueberries anytime.',
       price: 7.50,
       unit: 'kg',
@@ -138,6 +172,7 @@ async function seed() {
       order: 6,
     },
     {
+      storeId: store.id,
       name: 'Framboesas Congeladas',
       nameEn: 'Frozen Raspberries',
       slug: 'framboesas-congeladas',
@@ -158,6 +193,7 @@ async function seed() {
       order: 7,
     },
     {
+      storeId: store.id,
       name: 'Cabaz Pequenos Frutos Mistos',
       nameEn: 'Mixed Berry Basket',
       slug: 'cabaz-misto-pequenos-frutos',
@@ -180,6 +216,7 @@ async function seed() {
       order: 8,
     },
     {
+      storeId: store.id,
       name: 'Morangos Congelados',
       nameEn: 'Frozen Strawberries',
       slug: 'morangos-congelados',
@@ -200,6 +237,7 @@ async function seed() {
       order: 9,
     },
     {
+      storeId: store.id,
       name: 'Amoras Congeladas',
       nameEn: 'Frozen Blackberries',
       slug: 'amoras-congeladas',
@@ -225,7 +263,8 @@ async function seed() {
     await db.product.create({ data: product })
   }
 
-  console.log(`Seeded ${products.length} products`)
+  console.log(`Seeded ${products.length} products for store "${store.name}"`)
+  console.log('Seed completed successfully!')
 }
 
 seed()

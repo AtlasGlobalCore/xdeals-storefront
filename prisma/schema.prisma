@@ -7,34 +7,95 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================================================
+// SaaS MULTI-TENANT ARCHITECTURE
+// ============================================================================
+// Seller (1) ──< Store (N) ──< Product (N)
+//                            ──< Order (N)
+//                            ──< B2BInquiry (N)
+//
+// Store replaces the traditional "Tenant" concept.
+// Each Store has a unique subdomain (e.g. loja1.xdeals.online)
+// and a walletReference that bridges to the core banking ledger.
+//
+// MIGRATION NOTE: When migrating to Supabase (PostgreSQL):
+//   1. Change provider to "postgresql" and update DATABASE_URL
+//   2. Add @db.Uuid to all UUID id fields
+//   3. Add @db.Text to rich text fields if needed
+//   4. Run: prisma migrate dev --name init_supabase
+// ============================================================================
+
+model Seller {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  stores Store[]
+}
+
+model Store {
+  id             String   @id @default(uuid())
+  sellerId       String
+  subdomain      String   @unique // e.g. "loja1" for loja1.xdeals.online
+  walletReference String  @unique // Bridge to core banking ledger
+  themePrimary   String   @default("#2D6A4F")
+  name           String
+  logoUrl        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  seller    Seller        @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  products  Product[]
+  orders    Order[]
+  inquiries B2BInquiry[]
+
+  @@index([sellerId])
+  @@index([subdomain])
+  @@index([walletReference])
+}
+
 model Product {
-  id            String   @id @default(cuid())
-  name          String
-  nameEn        String
-  slug          String   @unique
-  description   String
-  descriptionEn String
-  price         Float
-  unit          String   @default("kg")
-  category      String   // "bagas", "arvore", "arbustos", "morangos"
-  format        String   // "fresco", "congelado", "cabaz-misto"
-  image         String
-  inStock       Boolean  @default(true)
-  isSeasonal    Boolean  @default(false)
-  seasonStart   String?  // Month name e.g. "Maio"
-  seasonEnd     String?  // Month name e.g. "Setembro"
-  origin        String   @default("Sátão, Viseu")
+  id             String   @id @default(uuid())
+  storeId        String
+  name           String
+  nameEn         String
+  slug           String   @unique
+  description    String
+  descriptionEn  String
+  price          Float
+  unit           String   @default("kg")
+  category       String   // "bagas", "arvore", "arbustos", "morangos"
+  format         String   // "fresco", "congelado", "cabaz-misto"
+  image          String
+  inStock        Boolean  @default(true)
+  isSeasonal     Boolean  @default(false)
+  seasonStart    String?  // Month name e.g. "Maio"
+  seasonEnd      String?  // Month name e.g. "Setembro"
+  origin         String   @default("Sátão, Viseu")
   nutritionalInfo String?
-  storageTips   String?
-  storageTipsEn String?
-  isFeatured    Boolean  @default(false)
-  order         Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  storageTips    String?
+  storageTipsEn  String?
+  isFeatured     Boolean  @default(false)
+  order          Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@index([category])
+  @@index([format])
+  @@index([isFeatured])
 }
 
 model B2BInquiry {
-  id           String   @id @default(cuid())
+  id           String   @id @default(uuid())
+  storeId      String
   companyName  String
   contactName  String
   email        String
@@ -47,10 +108,16 @@ model B2BInquiry {
   status       String   @default("pending") // "pending", "contacted", "closed"
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  // Relations
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
 }
 
 model Order {
-  id            String     @id @default(cuid())
+  id            String     @id @default(uuid())
+  storeId       String
   customerName  String
   email         String
   phone         String
@@ -64,15 +131,23 @@ model Order {
   items         OrderItem[]
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
+
+  // Relations
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@index([status])
 }
 
 model OrderItem {
-  id        String  @id @default(cuid())
-  orderId   String
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId String
+  id          String  @id @default(uuid())
+  orderId     String
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
   productName String
-  quantity  Int
-  unitPrice Float
-  unit      String
+  quantity    Int
+  unitPrice   Float
+  unit        String
+
+  @@index([orderId])
 }

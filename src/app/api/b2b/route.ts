@@ -1,10 +1,15 @@
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 
+/**
+ * POST /api/b2b
+ * Body must include storeId (or it defaults to first store).
+ * In production, storeId is resolved from subdomain (middleware).
+ */
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { companyName, contactName, email, phone, nif, businessType, products, quantity, message } = body
+    const { storeId: storeIdParam, companyName, contactName, email, phone, nif, businessType, products, quantity, message } = body
 
     if (!companyName || !contactName || !email || !businessType || !quantity) {
       return NextResponse.json(
@@ -13,8 +18,25 @@ export async function POST(request: Request) {
       )
     }
 
+    // Resolve storeId
+    let storeId = storeIdParam
+    if (!storeId) {
+      const firstStore = await db.store.findFirst()
+      if (!firstStore) {
+        return NextResponse.json({ error: 'No store found' }, { status: 404 })
+      }
+      storeId = firstStore.id
+    }
+
+    // Verify store exists
+    const store = await db.store.findUnique({ where: { id: storeId } })
+    if (!store) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    }
+
     const inquiry = await db.b2BInquiry.create({
       data: {
+        storeId,
         companyName,
         contactName,
         email,

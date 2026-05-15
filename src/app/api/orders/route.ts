@@ -1,16 +1,37 @@
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
 
+/**
+ * POST /api/orders
+ * Body must include storeId (or it defaults to first store).
+ * In production, storeId is resolved from subdomain (middleware).
+ */
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { customerName, email, phone, address, city, postalCode, paymentMethod, items } = body
+    const { storeId: storeIdParam, customerName, email, phone, address, city, postalCode, paymentMethod, items } = body
 
     if (!customerName || !email || !phone || !address || !city || !postalCode || !paymentMethod || !items?.length) {
       return NextResponse.json(
         { error: 'Campos obrigatórios em falta' },
         { status: 400 }
       )
+    }
+
+    // Resolve storeId
+    let storeId = storeIdParam
+    if (!storeId) {
+      const firstStore = await db.store.findFirst()
+      if (!firstStore) {
+        return NextResponse.json({ error: 'No store found' }, { status: 404 })
+      }
+      storeId = firstStore.id
+    }
+
+    // Verify store exists
+    const store = await db.store.findUnique({ where: { id: storeId } })
+    if (!store) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
     }
 
     const total = items.reduce((sum: number, item: { unitPrice: number; quantity: number }) => sum + item.unitPrice * item.quantity, 0)
@@ -24,6 +45,7 @@ export async function POST(request: Request) {
 
     const order = await db.order.create({
       data: {
+        storeId,
         customerName,
         email,
         phone,
