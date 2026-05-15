@@ -1,34 +1,27 @@
 import { db } from '@/lib/db'
 
-// Domains that serve the platform (subdomain-eligible)
-const PLATFORM_DOMAINS = ['xdeals.online']
+const PLATFORM_DOMAINS = ['xdeals.online', 'staging.xdeals.online']
 
 /**
- * Extracts the store subdomain from a Request's Host header.
- *
+ * Extracts the store slug from a Request's headers.
  * Resolution order:
- * 1. x-store-subdomain header (set by middleware or client)
+ * 1. x-store-slug header (set by middleware)
  * 2. Host header → subdomain.xdeals.online → "subdomain"
  * 3. Fallback: first store in DB (single-tenant dev mode)
  */
-export function extractSubdomain(request: Request): string | null {
+export function extractStoreSlug(request: Request): string | null {
   // 1. Check explicit header (set by middleware)
-  const headerSubdomain = request.headers.get('x-store-subdomain')
-  if (headerSubdomain) return headerSubdomain
+  const headerSlug = request.headers.get('x-store-slug')
+  if (headerSlug) return headerSlug
 
   // 2. Extract from Host header
   const hostname = request.headers.get('host')?.split(':')[0] ?? ''
 
   for (const domain of PLATFORM_DOMAINS) {
     if (hostname.endsWith(`.${domain}`)) {
-      const subdomain = hostname.replace(`.${domain}`, '')
-      if (subdomain && subdomain !== 'www') return subdomain
+      const slug = hostname.replace(`.${domain}`, '')
+      if (slug && slug !== 'www') return slug
     }
-  }
-
-  // 3. Localhost: check custom header or return null
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return null // Will trigger fallback
   }
 
   return null
@@ -36,17 +29,16 @@ export function extractSubdomain(request: Request): string | null {
 
 /**
  * Resolves the Store from the request context.
- * Uses subdomain extraction from Host header, then DB lookup.
  */
 export async function resolveStoreFromRequest(
   request: Request
 ): Promise<{ store: NonNullable<Awaited<ReturnType<typeof db.store.findUnique>>> } | { error: string; status: number }> {
-  const subdomain = extractSubdomain(request)
+  const slug = extractStoreSlug(request)
 
-  if (subdomain) {
-    const store = await db.store.findUnique({ where: { subdomain } })
+  if (slug) {
+    const store = await db.store.findUnique({ where: { subdomain: slug } })
     if (store) return { store }
-    return { error: `Store not found for subdomain: ${subdomain}`, status: 404 }
+    return { error: `Store not found for slug: ${slug}`, status: 404 }
   }
 
   // Fallback: first store (dev mode)
