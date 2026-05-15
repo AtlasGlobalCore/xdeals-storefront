@@ -20,6 +20,8 @@ import {
   Landmark,
   CheckCircle2,
   Loader2,
+  ExternalLink,
+  Copy,
 } from 'lucide-react'
 
 interface CheckoutForm {
@@ -32,6 +34,13 @@ interface CheckoutForm {
   paymentMethod: string
 }
 
+interface PaymentResult {
+  sessionId: string | null
+  paymentUrl: string | null
+  expiresAt: string | null
+  methodSpecific: Record<string, unknown> | null
+}
+
 export default function CheckoutDialog() {
   const isCheckoutOpen = useUIStore((s) => s.isCheckoutOpen)
   const setCheckoutOpen = useUIStore((s) => s.setCheckoutOpen)
@@ -42,6 +51,8 @@ export default function CheckoutDialog() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [paymentRef, setPaymentRef] = useState('')
+  const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null)
+  const [orderId, setOrderId] = useState('')
   const [errors, setErrors] = useState<Partial<CheckoutForm>>({})
 
   const [form, setForm] = useState<CheckoutForm>({
@@ -91,14 +102,27 @@ export default function CheckoutDialog() {
         }),
       })
 
-      if (!res.ok) throw new Error('Order failed')
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || 'Order failed')
+      }
 
       const data = await res.json()
-      setPaymentRef(data.order?.paymentRef || '')
+
+      // Extract payment info from the new response format
+      const payment: PaymentResult = data.payment || {}
+      setPaymentResult(payment)
+      setOrderId(data.order?.id || '')
+      setPaymentRef(
+        payment.sessionId ||
+        data.order?.paymentRef ||
+        ''
+      )
       setIsSuccess(true)
       clearCart()
-    } catch {
-      setErrors({ email: 'Erro ao processar encomenda. Tente novamente.' })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao processar encomenda. Tente novamente.'
+      setErrors({ email: message })
     } finally {
       setIsSubmitting(false)
     }
@@ -109,6 +133,8 @@ export default function CheckoutDialog() {
       if (isSuccess) {
         setIsSuccess(false)
         setPaymentRef('')
+        setPaymentResult(null)
+        setOrderId('')
         setForm({
           customerName: '',
           email: '',
@@ -129,6 +155,10 @@ export default function CheckoutDialog() {
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }))
     }
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
   }
 
   const paymentMethods = [
@@ -152,6 +182,93 @@ export default function CheckoutDialog() {
     },
   ]
 
+  // Render method-specific payment details in the success view
+  const renderPaymentDetails = () => {
+    if (!paymentResult?.methodSpecific) return null
+
+    const ms = paymentResult.methodSpecific
+
+    if (form.paymentMethod === 'mbway' && ms.phoneNumber) {
+      return (
+        <div className="bg-[#F0F4F0] rounded-xl p-4 mb-4">
+          <p className="text-sm text-[#5C7A6B] mb-1">MB WAY</p>
+          <p className="text-sm text-[#1B4332]">
+            Confirme o pagamento na app MB WAY para o número{' '}
+            <span className="font-bold">{String(ms.phoneNumber)}</span>
+          </p>
+          {paymentResult.paymentUrl && (
+            <a
+              href={paymentResult.paymentUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-sm text-[#2D6A4F] hover:underline mt-2"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Abrir pagamento
+            </a>
+          )}
+        </div>
+      )
+    }
+
+    if (form.paymentMethod === 'multibanco' && ms.entity && ms.reference) {
+      return (
+        <div className="bg-[#F0F4F0] rounded-xl p-4 mb-4 space-y-3">
+          <p className="text-sm text-[#5C7A6B]">Pagamento Multibanco</p>
+          <div className="flex items-center justify-between bg-white rounded-lg p-3">
+            <div>
+              <p className="text-xs text-[#5C7A6B]">Entidade</p>
+              <p className="text-lg font-bold text-[#1B4332] font-mono">{String(ms.entity)}</p>
+            </div>
+            <button
+              onClick={() => copyToClipboard(String(ms.entity))}
+              className="p-1.5 rounded hover:bg-[#F0F4F0] transition-colors"
+            >
+              <Copy className="h-4 w-4 text-[#5C7A6B]" />
+            </button>
+          </div>
+          <div className="flex items-center justify-between bg-white rounded-lg p-3">
+            <div>
+              <p className="text-xs text-[#5C7A6B]">Referência</p>
+              <p className="text-lg font-bold text-[#1B4332] font-mono">{String(ms.reference)}</p>
+            </div>
+            <button
+              onClick={() => copyToClipboard(String(ms.reference))}
+              className="p-1.5 rounded hover:bg-[#F0F4F0] transition-colors"
+            >
+              <Copy className="h-4 w-4 text-[#5C7A6B]" />
+            </button>
+          </div>
+          <div className="flex items-center justify-between bg-white rounded-lg p-3">
+            <div>
+              <p className="text-xs text-[#5C7A6B]">Valor</p>
+              <p className="text-lg font-bold text-[#2D6A4F] font-mono">{total.toFixed(2)}€</p>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    if (form.paymentMethod === 'cartao' && ms.redirectUrl) {
+      return (
+        <div className="bg-[#F0F4F0] rounded-xl p-4 mb-4">
+          <p className="text-sm text-[#5C7A6B] mb-2">Pagamento com Cartão</p>
+          <a
+            href={String(ms.redirectUrl)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 bg-[#2D6A4F] hover:bg-[#40916C] text-[#FEFAE0] px-4 py-2 rounded-lg font-medium transition-colors"
+          >
+            <CreditCard className="h-4 w-4" />
+            Pagar com Cartão
+          </a>
+        </div>
+      )
+    }
+
+    return null
+  }
+
   return (
     <Dialog open={isCheckoutOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar bg-white border-[#B7E4C7]">
@@ -161,19 +278,34 @@ export default function CheckoutDialog() {
               <CheckCircle2 className="h-10 w-10 text-[#2D6A4F]" />
             </div>
             <h2 className="font-[family-name:var(--font-playfair)] text-2xl font-bold text-[#1B4332] mb-2">
-              Encomenda Confirmada!
+              Encomenda Registada!
             </h2>
-            <p className="text-[#5C7A6B] mb-4">
-              Obrigado pela sua encomenda. Receberá um email com os detalhes.
+            <p className="text-[#5C7A6B] mb-2">
+              A sua encomenda foi criada com sucesso.
             </p>
+            <p className="text-sm text-[#5C7A6B]/70 mb-4">
+              Estado: <span className="font-medium text-[#2D6A4F]">A aguardar pagamento</span>
+            </p>
+
+            {/* Method-specific payment details */}
+            {renderPaymentDetails()}
+
+            {/* Session ID fallback */}
             {paymentRef && (
-              <div className="bg-[#F0F4F0] rounded-xl p-4 mb-4">
-                <p className="text-sm text-[#5C7A6B]">Referência de Pagamento</p>
-                <p className="text-xl font-bold text-[#2D6A4F] font-mono">
+              <div className="bg-[#F0F4F0] rounded-xl p-4 mb-4 w-full">
+                <p className="text-sm text-[#5C7A6B]">ID da Sessão de Pagamento</p>
+                <p className="text-xl font-bold text-[#2D6A4F] font-mono break-all">
                   {paymentRef}
                 </p>
               </div>
             )}
+
+            {orderId && (
+              <p className="text-xs text-[#5C7A6B]/60 mb-4">
+                Nº Encomenda: {orderId.substring(0, 8).toUpperCase()}
+              </p>
+            )}
+
             <Button
               className="bg-[#2D6A4F] hover:bg-[#40916C] text-[#FEFAE0] rounded-lg"
               onClick={() => handleClose(false)}

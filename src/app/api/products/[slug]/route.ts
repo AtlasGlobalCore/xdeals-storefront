@@ -1,11 +1,10 @@
 import { db } from '@/lib/db'
+import { getStoreIdFromRequest } from '@/lib/store'
 import { NextResponse } from 'next/server'
 
 /**
  * GET /api/products/:slug
- * Query params: storeId
- * In production, storeId is resolved from subdomain.
- * For local dev, defaults to the first store if not provided.
+ * Store context is resolved from the subdomain in the Host header.
  */
 export async function GET(
   request: Request,
@@ -13,18 +12,13 @@ export async function GET(
 ) {
   try {
     const { slug } = await params
-    const { searchParams } = new URL(request.url)
-    const storeIdParam = searchParams.get('storeId')
 
-    // Resolve storeId
-    let storeId = storeIdParam
-    if (!storeId) {
-      const firstStore = await db.store.findFirst()
-      if (!firstStore) {
-        return NextResponse.json({ error: 'No store found' }, { status: 404 })
-      }
-      storeId = firstStore.id
+    // Resolve storeId from subdomain
+    const storeResult = await getStoreIdFromRequest(request)
+    if ('error' in storeResult) {
+      return NextResponse.json({ error: storeResult.error }, { status: storeResult.status })
     }
+    const { storeId } = storeResult
 
     const product = await db.product.findFirst({
       where: { slug, storeId },

@@ -116,27 +116,30 @@ model B2BInquiry {
 }
 
 model Order {
-  id            String     @id @default(uuid())
-  storeId       String
-  customerName  String
-  email         String
-  phone         String
-  address       String
-  city          String
-  postalCode    String
-  total         Float
-  status        String     @default("pending") // "pending", "confirmed", "shipped", "delivered"
-  paymentMethod String     // "mbway", "multibanco", "cartao"
-  paymentRef    String?
-  items         OrderItem[]
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id               String     @id @default(uuid())
+  storeId          String
+  customerName     String
+  email            String
+  phone            String
+  address          String
+  city             String
+  postalCode       String
+  total            Float
+  status           String     @default("AWAITING_PAYMENT") // "AWAITING_PAYMENT", "PAID", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"
+  paymentMethod    String     // "mbway", "multibanco", "cartao"
+  paymentRef       String?
+  paymentSessionId String?    // Session ID returned by Ghost Middleware
+  paymentUrl       String?    // Payment link returned by Ghost Middleware
+  items            OrderItem[]
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
   // Relations
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@index([storeId])
   @@index([status])
+  @@index([paymentSessionId])
 }
 
 model OrderItem {

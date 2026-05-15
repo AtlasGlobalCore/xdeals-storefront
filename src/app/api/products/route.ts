@@ -1,30 +1,26 @@
 import { db } from '@/lib/db'
+import { getStoreIdFromRequest } from '@/lib/store'
 import { NextResponse } from 'next/server'
 
 /**
  * GET /api/products
- * Query params: storeId, category, format, featured, inStock
- * In production, storeId is resolved from subdomain (middleware).
- * For local dev, defaults to the first store if not provided.
+ * Store context is resolved from the subdomain in the Host header.
+ * Falls back to first store in local dev.
  */
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const storeIdParam = searchParams.get('storeId')
     const category = searchParams.get('category')
     const format = searchParams.get('format')
     const featured = searchParams.get('featured')
     const inStock = searchParams.get('inStock')
 
-    // Resolve storeId: use provided value or fall back to first store
-    let storeId = storeIdParam
-    if (!storeId) {
-      const firstStore = await db.store.findFirst()
-      if (!firstStore) {
-        return NextResponse.json({ error: 'No store found' }, { status: 404 })
-      }
-      storeId = firstStore.id
+    // Resolve storeId from subdomain
+    const storeResult = await getStoreIdFromRequest(request)
+    if ('error' in storeResult) {
+      return NextResponse.json({ error: storeResult.error }, { status: storeResult.status })
     }
+    const { storeId } = storeResult
 
     const where: Record<string, unknown> = { storeId }
 

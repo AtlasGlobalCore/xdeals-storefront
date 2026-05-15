@@ -1,15 +1,15 @@
 import { db } from '@/lib/db'
+import { getStoreIdFromRequest } from '@/lib/store'
 import { NextResponse } from 'next/server'
 
 /**
  * POST /api/b2b
- * Body must include storeId (or it defaults to first store).
- * In production, storeId is resolved from subdomain (middleware).
+ * Store context is resolved from the subdomain in the Host header.
  */
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { storeId: storeIdParam, companyName, contactName, email, phone, nif, businessType, products, quantity, message } = body
+    const { companyName, contactName, email, phone, nif, businessType, products, quantity, message } = body
 
     if (!companyName || !contactName || !email || !businessType || !quantity) {
       return NextResponse.json(
@@ -18,21 +18,12 @@ export async function POST(request: Request) {
       )
     }
 
-    // Resolve storeId
-    let storeId = storeIdParam
-    if (!storeId) {
-      const firstStore = await db.store.findFirst()
-      if (!firstStore) {
-        return NextResponse.json({ error: 'No store found' }, { status: 404 })
-      }
-      storeId = firstStore.id
+    // Resolve storeId from subdomain
+    const storeResult = await getStoreIdFromRequest(request)
+    if ('error' in storeResult) {
+      return NextResponse.json({ error: storeResult.error }, { status: storeResult.status })
     }
-
-    // Verify store exists
-    const store = await db.store.findUnique({ where: { id: storeId } })
-    if (!store) {
-      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
-    }
+    const { storeId } = storeResult
 
     const inquiry = await db.b2BInquiry.create({
       data: {
