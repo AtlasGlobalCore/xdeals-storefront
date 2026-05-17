@@ -1,19 +1,6 @@
 import type { Metadata } from 'next'
-import { Playfair_Display, DM_Sans } from 'next/font/google'
 import StoreProviderWrapper from '@/components/store-provider'
 import { Toaster } from '@/components/ui/toaster'
-
-const playfair = Playfair_Display({
-  variable: '--font-playfair',
-  subsets: ['latin'],
-  display: 'swap',
-})
-
-const dmSans = DM_Sans({
-  variable: '--font-dm-sans',
-  subsets: ['latin'],
-  display: 'swap',
-})
 
 interface StoreLayoutProps {
   children: React.ReactNode
@@ -23,7 +10,12 @@ interface StoreLayoutProps {
 /**
  * Dynamic layout per store slug.
  * Fetches store config from the Core Banking API server-side,
- * injects theme CSS variables, and wraps children in StoreProvider.
+ * and wraps children in StoreProvider for client-side theming.
+ *
+ * NOTE: <html> and <body> are in the root layout only (src/app/layout.tsx).
+ * This layout adds the StoreProvider + Toaster for store pages.
+ * Theme CSS variables are injected client-side by StoreProvider
+ * into document.documentElement.style.
  */
 export default async function StoreLayout({ children, params }: StoreLayoutProps) {
   const { storeSlug } = await params
@@ -59,33 +51,12 @@ export default async function StoreLayout({ children, params }: StoreLayoutProps
     }
   }
 
-  const themePrimary = storeConfig.themePrimary || '#2D6A4F'
-
   return (
-    <html lang="pt" suppressHydrationWarning>
-      <body
-        className={`${playfair.variable} ${dmSans.variable} antialiased bg-background text-foreground`}
-        style={{
-          ['--color-primary' as string]: themePrimary,
-          ['--color-primary-light' as string]: adjustColor(themePrimary, 30),
-          ['--color-primary-dark' as string]: adjustColor(themePrimary, -20),
-        }}
-      >
-        <StoreProviderWrapper initialConfig={storeConfig} storeSlug={storeSlug}>
-          {children}
-        </StoreProviderWrapper>
-        <Toaster />
-      </body>
-    </html>
+    <StoreProviderWrapper initialConfig={storeConfig} storeSlug={storeSlug}>
+      {children}
+      <Toaster />
+    </StoreProviderWrapper>
   )
-}
-
-function adjustColor(hex: string, amount: number): string {
-  const num = parseInt(hex.replace('#', ''), 16)
-  const r = Math.min(255, Math.max(0, ((num >> 16) & 0xff) + amount))
-  const g = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + amount))
-  const b = Math.min(255, Math.max(0, (num & 0xff) + amount))
-  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ storeSlug: string }> }): Promise<Metadata> {

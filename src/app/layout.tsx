@@ -1,5 +1,18 @@
 import type { Metadata } from 'next'
+import { Playfair_Display, DM_Sans } from 'next/font/google'
 import './globals.css'
+
+const playfair = Playfair_Display({
+  variable: '--font-playfair',
+  subsets: ['latin'],
+  display: 'swap',
+})
+
+const dmSans = DM_Sans({
+  variable: '--font-dm-sans',
+  subsets: ['latin'],
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'xdeals.online — SaaS Storefront Platform',
@@ -7,16 +20,23 @@ export const metadata: Metadata = {
 }
 
 /**
- * Root Layout — Platform Landing Page
+ * Root Layout — Required by Next.js
  *
- * The root layout only wraps the landing page (no subdomain).
- * When a subdomain is detected, the middleware rewrites to
- * /[storeSlug]/... which has its own layout with store config.
+ * Defines the mandatory <html> and <body> tags.
+ * Fonts and globals.css are loaded here so all routes inherit them.
+ * Store-specific theming is handled by StoreProvider in [storeSlug]/layout.tsx
+ * which injects CSS variables into document.documentElement.
  */
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  return children
+  return (
+    <html lang="pt" suppressHydrationWarning>
+      <body className={`${playfair.variable} ${dmSans.variable} antialiased bg-background text-foreground`}>
+        {children}
+      </body>
+    </html>
+  )
 }
